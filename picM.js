@@ -1,51 +1,56 @@
-/**
- * Created by tydte on 2017/12/1.
- * 0成功
- * 1请选择您要上传的图片（未上传图片）
- * 2请选择正确的图片格式（gif,png,jpg）格式不对。
- */
-//负责上传图片
-
-var fs=require("fs");
-var formidable=require("formidable");
-//req,接收的前端页面传值信息
-//picName:上传图片的名字
-//callback:回调传值
-exports.addPic=function(req,picName,callback){
-    var form = formidable.IncomingForm();//生成表单对象
-    form.keepExtensions = true;//保留后缀名（扩展名）
-    form.maxFieldsSize = 2*1024*1024;//2M
-    form.encoding = "utf-8";//编码格式
-    form.uploadDir = "../upload";
-    form.parse(req,function(err,params,file){
-        if(file[picName].size==0){
-            fs.unlink(file[picName].path, function (err) {
-                callback({
-                    code:1,
-                    params:params,
-                    msg:"请选择您要上传的图片"
-                });//1请选择您要上传的图片（未上传图片）
+var fs = require("fs");
+var formidable = require("formidable");
+/*
+* 上传图片的模块
+* req,请求对象
+* picName,上传name名字
+* cb:回调函数
+* 返回结果：
+*   cb({
+        status:1,//1、上传的是一个空文件  2上传成功啦 3 上传格式错误
+        params:params  //表单当中，除了上传文件之外的内容 。
+        newName:图片的名字。
+        msg:结果的文字说明
+    })*/
+module.exports.upPic = function (req, picName, cb) {
+    var form = new formidable.IncomingForm(); //创建上传表单
+    form.encoding = 'utf-8'; //设置编辑
+    form.uploadDir = "./upload" //设置上传目录
+    form.keepExtensions = true; //保留后缀
+    form.maxFieldsSize = 2 * 1024 * 1024; //文件大小
+    form.parse(req, (err, params, file) => {
+        if (file[picName].size <= 0) {
+            fs.unlink(file[picName].path, (err) => {
+                cb({
+                    status: 1, //上传的是一个空文件
+                    params: params,
+                    msg: "请选择上传的图片"
+                })
             })
-        }else{
-            //验证文件的类型。
+        } else {
             var num = file[picName].path.lastIndexOf(".");
-            var extension = file[picName].path.substr(num + 1).toLowerCase();
-            if (extension == "jpg" || extension == "png" || extension == "gif") {
-                var newName = (new Date()).getTime() + "." + extension;
-                fs.rename(file[picName].path, "../upload/" + newName, function (err) {
-                    callback({
-                        code:0,
-                        params:params,
-                        newName:newName,
-                        msg:"成功"
-                    });//0成功
-                });
+            var extension = file[picName].path.substr(num).toLowerCase();
+            //支持图片上传的格式。
+            var imgType = ".jpg.jpeg.png.gif";
+            //验证上传图片的类型是不是图片格式
+            if (imgType.includes(extension)) {
+                var newName = (new Date()).getTime() + extension;
+                //改变名字（重命名），异步
+                fs.rename(file[picName].path, form.uploadDir + "/" + newName, (err) => {
+                    cb({
+                        status: 2, //上传成功啦
+                        params: params,
+                        newName: newName,
+                        msg: "上传成功"
+                    })
+                })
             } else {
-                fs.unlink(file[picName].path, function (err) {
-                    callback({
-                        code:2,
-                        msg:"请选择正确的图片格式（gif,png,jpg）"
-                    });//2请选择正确的图片格式（gif,png,jpg）
+                fs.unlink(file[picName].path, (err) => {
+                    cb({
+                        status: 3, //上传格式错误
+                        params: params,
+                        msg: `请上传${imgType}格式的图片`
+                    })
                 })
             }
         }
